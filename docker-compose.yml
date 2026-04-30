@@ -30,7 +30,7 @@ services:
     networks:
       - app_network
     expose:
-      - "8000"
+      - "9567"
 
   frontend:
     build:
@@ -40,14 +40,14 @@ services:
     networks:
       - app_network
     expose:
-      - "80"
+      - "9654"
 
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "9342:80"
+      - "9781:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro

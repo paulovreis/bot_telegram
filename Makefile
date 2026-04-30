@@ -29,4 +29,4 @@ restart:
 	docker compose restart
 
 start: ssl up
-	@echo "Sistema iniciado em https://localhost"
+	@echo "Sistema iniciado em https://localhost:9781"

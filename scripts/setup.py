@@ -103,7 +103,7 @@ TZ=America/Sao_Paulo
     print("  1. make ssl     → gera o certificado HTTPS")
     print("  2. make build   → constrói as imagens Docker")
     print("  3. make up      → sobe o sistema")
-    print("  4. Acesse: https://localhost")
+    print("  4. Acesse: https://localhost:9781")
     print(f"\n  Login: admin / [senha definida acima]")
 
 if __name__ == "__main__":
