@@ -1,0 +1,15 @@
+.env
+nginx/ssl/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+node_modules/
+frontend/dist/
+*.egg-info/
+.venv/
+venv/
+*.log
+.DS_Store
+Thumbs.db
