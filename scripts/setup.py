@@ -52,9 +52,9 @@ def main():
     password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt(12)).decode()
 
     # Preserva valores existentes do Telegram
-    bot_token = existing.get("TELEGRAM_BOT_TOKEN", "8650256155:AAG1Qj_vE1vC6DAsRB-gYLMPqtUF_yj-jA")
+    bot_token = existing.get("TELEGRAM_BOT_TOKEN", "")
     chat_id   = existing.get("TELEGRAM_CHAT_ID", "")
-    pg_pass   = existing.get("POSTGRES_PASSWORD", "B0tSecure#2026")
+    pg_pass   = existing.get("POSTGRES_PASSWORD", "")
 
     env_content = f"""# Auto-gerado por scripts/setup.py
 
