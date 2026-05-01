@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard'
 import { Login } from './pages/Login'
 import { Compose } from './pages/Compose'
 import { Settings } from './pages/Settings'
+import { Templates } from './pages/Templates'
 import { useAuthStore } from './store/authStore'
 import { refresh } from './api/auth'
 
@@ -29,6 +30,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/compose" element={<Compose />} />
+            <Route path="/templates" element={<Templates />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>

@@ -12,7 +12,7 @@ from starlette.responses import JSONResponse
 from .config import settings as app_settings
 from .database import AsyncSessionLocal, init_db
 from .models.bot_settings import BotSettings
-from .routes import auth, messages, settings
+from .routes import auth, messages, settings, templates
 from .services.encryption import encrypt
 from .services.scheduler import scheduler_loop
 from .services.telegram import normalize_bot_token
@@ -93,6 +93,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(messages.router)
 app.include_router(settings.router)
+app.include_router(templates.router)
 
 
 @app.get("/health")

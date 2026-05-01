@@ -1,14 +1,16 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarClock, Send, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import DatePicker from 'react-datepicker'
 import { registerLocale } from 'react-datepicker'
 import { ptBR } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 import toast from 'react-hot-toast'
-import { format, addMinutes } from 'date-fns'
+import { format, addMinutes, parseISO } from 'date-fns'
 import { MessageEditor, type EditorState } from '../components/MessageEditor'
-import { createMessage, sendNow } from '../api/messages'
+import { createMessage, updateMessage, sendNow } from '../api/messages'
+import { listMessages } from '../api/messages'
+import { listTemplates } from '../api/templates'
 
 registerLocale('pt-BR', ptBR)
 
@@ -34,22 +36,95 @@ function toSpISO(date: Date): string {
 
 export function Compose() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
+  // ?edit=<id>        → edita mensagem agendada existente
+  // ?repeat=<id>      → preenche com dados de mensagem deletada (repetir envio)
+  // ?template=<id>    → preenche com dados de um template favorito
+  const editId = searchParams.get('edit')
+  const repeatId = searchParams.get('repeat')
+  const templateId = searchParams.get('template')
+  const isEditing = Boolean(editId)
+
   const [editor, setEditor] = useState<EditorState>(DEFAULT_STATE)
   const [scheduledAt, setScheduledAt] = useState<Date>(addMinutes(new Date(), 30))
   const [mode, setMode] = useState<'schedule' | 'now'>('schedule')
   const [submitting, setSubmitting] = useState(false)
   const [schedPanelOpen, setSchedPanelOpen] = useState(false)
+  const [prefillLoading, setPrefillLoading] = useState(Boolean(editId || repeatId || templateId))
+  const [existingMediaFilename, setExistingMediaFilename] = useState<string | null>(null)
+
+  // Carrega dados para prefill
+  useEffect(() => {
+    if (!editId && !repeatId && !templateId) return
+
+    async function loadPrefill() {
+      try {
+        if (editId || repeatId) {
+          const messages = await listMessages()
+          const targetId = editId ?? repeatId
+          const msg = messages.find((m) => m.id === targetId)
+          if (!msg) {
+            toast.error('Mensagem não encontrada')
+            navigate('/dashboard')
+            return
+          }
+          setEditor({
+            messageType: msg.message_type,
+            text: msg.text ?? '',
+            parseMode: msg.parse_mode,
+            mediaFile: null,
+            inlineKeyboard: msg.inline_keyboard ?? [],
+            pollData: msg.poll_data ?? DEFAULT_STATE.pollData,
+            disableWebPagePreview: msg.disable_web_page_preview,
+          })
+          setExistingMediaFilename(msg.media_filename)
+          if (editId) {
+            try {
+              setScheduledAt(parseISO(msg.scheduled_at))
+            } catch {
+              setScheduledAt(addMinutes(new Date(), 30))
+            }
+          }
+        } else if (templateId) {
+          const templates = await listTemplates()
+          const tmpl = templates.find((t) => t.id === templateId)
+          if (!tmpl) {
+            toast.error('Template não encontrado')
+            navigate('/templates')
+            return
+          }
+          setEditor({
+            messageType: tmpl.message_type,
+            text: tmpl.text ?? '',
+            parseMode: tmpl.parse_mode,
+            mediaFile: null,
+            inlineKeyboard: tmpl.inline_keyboard ?? [],
+            pollData: tmpl.poll_data ?? DEFAULT_STATE.pollData,
+            disableWebPagePreview: tmpl.disable_web_page_preview,
+          })
+          setExistingMediaFilename(tmpl.media_filename)
+        }
+      } catch {
+        toast.error('Erro ao carregar dados')
+      } finally {
+        setPrefillLoading(false)
+      }
+    }
+
+    void loadPrefill()
+  }, [editId, repeatId, templateId, navigate])
 
   function validate(): string | null {
     const { messageType, text, mediaFile, pollData } = editor
     if (messageType === 'poll') {
-      if (!pollData.question.trim()) return 'A pergunta da enquete e obrigatoria.'
-      if (pollData.options.filter((o) => o.trim()).length < 2) return 'Minimo 2 opcoes preenchidas.'
+      if (!pollData.question.trim()) return 'A pergunta da enquete é obrigatória.'
+      if (pollData.options.filter((o) => o.trim()).length < 2) return 'Mínimo 2 opções preenchidas.'
       return null
     }
     const hasMedia = !['text', 'poll'].includes(messageType)
-    if (hasMedia && !mediaFile) return 'Selecione um arquivo de midia.'
-    if (!hasMedia && !text.trim()) return 'O texto da mensagem e obrigatorio.'
+    if (hasMedia && !mediaFile && !existingMediaFilename) return 'Selecione um arquivo de mídia.'
+    if (!hasMedia && !text.trim()) return 'O texto da mensagem é obrigatório.'
     return null
   }
 
@@ -60,7 +135,7 @@ export function Compose() {
 
     setSubmitting(true)
     try {
-      await createMessage({
+      const payload = {
         message_type: editor.messageType,
         text: editor.text || undefined,
         parse_mode: editor.parseMode,
@@ -69,8 +144,15 @@ export function Compose() {
         disable_web_page_preview: editor.disableWebPagePreview,
         scheduled_at: toSpISO(scheduledAt),
         media: editor.mediaFile ?? undefined,
-      })
-      toast.success('Mensagem agendada com sucesso!')
+      }
+
+      if (isEditing && editId) {
+        await updateMessage(editId, { ...payload, clearMedia: !editor.mediaFile && !existingMediaFilename })
+        toast.success('Mensagem atualizada!')
+      } else {
+        await createMessage(payload)
+        toast.success('Mensagem agendada com sucesso!')
+      }
       navigate('/dashboard')
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
@@ -86,17 +168,33 @@ export function Compose() {
 
     setSubmitting(true)
     try {
-      const { id } = await createMessage({
-        message_type: editor.messageType,
-        text: editor.text || undefined,
-        parse_mode: editor.parseMode,
-        inline_keyboard: editor.inlineKeyboard.length ? editor.inlineKeyboard : undefined,
-        poll_data: editor.messageType === 'poll' ? editor.pollData : undefined,
-        disable_web_page_preview: editor.disableWebPagePreview,
-        scheduled_at: toSpISO(addMinutes(new Date(), 1)),
-        media: editor.mediaFile ?? undefined,
-      })
-      await sendNow(id)
+      if (isEditing && editId) {
+        // Atualiza e envia imediatamente
+        await updateMessage(editId, {
+          message_type: editor.messageType,
+          text: editor.text || undefined,
+          parse_mode: editor.parseMode,
+          inline_keyboard: editor.inlineKeyboard.length ? editor.inlineKeyboard : undefined,
+          poll_data: editor.messageType === 'poll' ? editor.pollData : undefined,
+          disable_web_page_preview: editor.disableWebPagePreview,
+          scheduled_at: toSpISO(addMinutes(new Date(), 1)),
+          media: editor.mediaFile ?? undefined,
+          clearMedia: !editor.mediaFile && !existingMediaFilename,
+        })
+        await sendNow(editId)
+      } else {
+        const { id } = await createMessage({
+          message_type: editor.messageType,
+          text: editor.text || undefined,
+          parse_mode: editor.parseMode,
+          inline_keyboard: editor.inlineKeyboard.length ? editor.inlineKeyboard : undefined,
+          poll_data: editor.messageType === 'poll' ? editor.pollData : undefined,
+          disable_web_page_preview: editor.disableWebPagePreview,
+          scheduled_at: toSpISO(addMinutes(new Date(), 1)),
+          media: editor.mediaFile ?? undefined,
+        })
+        await sendNow(id)
+      }
       toast.success('Mensagem enviada!')
       navigate('/dashboard')
     } catch (err: unknown) {
@@ -107,29 +205,44 @@ export function Compose() {
     }
   }
 
+  const pageTitle = isEditing ? 'Editar mensagem' : 'Compor mensagem'
+
+  if (prefillLoading) {
+    return (
+      <div className="flex items-center justify-center h-full text-slate-400">
+        Carregando...
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 sm:px-6 sm:py-4 border-b border-surface-700 bg-surface-800 shrink-0">
-        <button onClick={() => navigate(-1)} className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg">
+      <div className="flex items-center gap-3 px-4 py-3 sm:px-6 sm:py-4 border-b border-surface-700 bg-surface-800 shrink-0 min-w-0">
+        <button onClick={() => navigate(-1)} className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-base sm:text-lg font-semibold text-white">Compor mensagem</h1>
+        <h1 className="text-base sm:text-lg font-semibold text-white truncate">{pageTitle}</h1>
+        {(repeatId || templateId) && (
+          <span className="text-xs text-brand-400 bg-brand-600/20 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+            {repeatId ? 'Repetindo' : 'Template'}
+          </span>
+        )}
       </div>
 
-      {/* Body: stacks vertically on mobile, side-by-side on desktop */}
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-        {/* Editor */}
+      {/* Body: coluna única no mobile, lado a lado no desktop */}
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
+        {/* Editor — ocupa o espaço disponível e rola internamente */}
         <div className="flex-1 flex flex-col overflow-hidden lg:border-r border-surface-700 min-h-0">
-          <MessageEditor value={editor} onChange={setEditor} />
+          <MessageEditor value={editor} onChange={setEditor} existingMediaFilename={existingMediaFilename} />
         </div>
 
-        {/* Scheduling panel */}
-        <div className="lg:w-80 shrink-0 bg-surface-800 lg:overflow-y-auto border-t border-surface-700 lg:border-t-0">
-          {/* Mobile accordion toggle */}
+        {/* Painel de agendamento */}
+        <div className="lg:w-80 shrink-0 flex flex-col bg-surface-800 border-t border-surface-700 lg:border-t-0">
+          {/* Toggle accordion — só no mobile */}
           <button
             type="button"
-            className="lg:hidden w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-300"
+            className="lg:hidden w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-300 active:bg-surface-700 transition-colors"
             onClick={() => setSchedPanelOpen((v) => !v)}
           >
             <span className="flex items-center gap-2">
@@ -144,11 +257,23 @@ export function Compose() {
                 <span className="text-xs text-green-400 font-normal">Agora</span>
               )}
             </span>
-            {schedPanelOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            {schedPanelOpen
+              ? <ChevronUp className="w-4 h-4 text-slate-400" />
+              : <ChevronDown className="w-4 h-4 text-slate-400" />}
           </button>
 
-          {/* Panel content: always visible on desktop, toggled on mobile */}
-          <div className={`${schedPanelOpen ? 'block' : 'hidden'} lg:block`}>
+          {/*
+            Conteúdo do painel:
+            - Mobile: exibido apenas quando accordion está aberto, com overflow-y-auto
+              para que não transborde em telas pequenas.
+            - Desktop: sempre visível, preenche a altura e rola se necessário.
+          */}
+          <div
+            className={`
+              lg:flex flex-col flex-1 overflow-y-auto
+              ${schedPanelOpen ? 'flex' : 'hidden'}
+            `}
+          >
             <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
               <div className="hidden lg:flex items-center gap-2 text-sm font-semibold text-slate-200">
                 <CalendarClock className="w-4 h-4 text-brand-400" />
@@ -174,7 +299,7 @@ export function Compose() {
 
               {mode === 'schedule' && (
                 <div>
-                  <label className="label">Data e horario (Sao Paulo)</label>
+                  <label className="label">Data e horário (São Paulo)</label>
                   <DatePicker
                     selected={scheduledAt}
                     onChange={(date) => date && setScheduledAt(date)}
@@ -194,31 +319,33 @@ export function Compose() {
                 </div>
               )}
 
-              {/* Summary */}
+              {/* Resumo */}
               <div className="bg-surface-900 rounded-lg p-3 space-y-1.5 text-xs text-slate-400">
                 <div className="flex justify-between">
                   <span>Tipo</span>
                   <span className="text-slate-200 capitalize">{editor.messageType}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Formatacao</span>
+                  <span>Formatação</span>
                   <span className="text-slate-200">{editor.parseMode}</span>
                 </div>
-                {editor.mediaFile && (
+                {(editor.mediaFile || existingMediaFilename) && (
                   <div className="flex justify-between">
                     <span>Arquivo</span>
-                    <span className="text-slate-200 truncate max-w-[120px]">{editor.mediaFile.name}</span>
+                    <span className="text-slate-200 truncate max-w-[120px]">
+                      {editor.mediaFile ? editor.mediaFile.name : existingMediaFilename}
+                    </span>
                   </div>
                 )}
                 {editor.inlineKeyboard.length > 0 && (
                   <div className="flex justify-between">
-                    <span>Botoes</span>
+                    <span>Botões</span>
                     <span className="text-slate-200">{editor.inlineKeyboard.flat().length}</span>
                   </div>
                 )}
               </div>
 
-              {/* Actions */}
+              {/* Ações */}
               <div className="space-y-2">
                 {mode === 'schedule' ? (
                   <button
@@ -228,7 +355,7 @@ export function Compose() {
                     className="btn-primary w-full flex items-center justify-center gap-2"
                   >
                     <CalendarClock className="w-4 h-4" />
-                    {submitting ? 'Agendando...' : 'Agendar envio'}
+                    {submitting ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Agendar envio'}
                   </button>
                 ) : (
                   <button
@@ -243,7 +370,7 @@ export function Compose() {
                 )}
                 <button
                   type="button"
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate(-1)}
                   className="btn-secondary w-full text-sm"
                 >
                   Cancelar

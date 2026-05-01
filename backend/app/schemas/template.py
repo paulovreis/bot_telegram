@@ -4,10 +4,11 @@ from typing import Any, Optional
 from pydantic import BaseModel
 
 
-class MessageResponse(BaseModel):
+class TemplateResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     id: uuid.UUID
+    name: str
     message_type: str
     text: Optional[str]
     parse_mode: str
@@ -16,13 +17,11 @@ class MessageResponse(BaseModel):
     inline_keyboard: Any
     poll_data: Any
     disable_web_page_preview: bool
-    scheduled_at: datetime
-    status: str
-    error_message: Optional[str]
+    recurrence_minutes: Optional[int]
+    next_send_at: Optional[datetime]
+    recurrence_end_at: Optional[datetime]
     created_at: datetime
-    deleted_at: Optional[datetime]
-    template_id: Optional[uuid.UUID]
 
 
-class MessageList(BaseModel):
-    messages: list[MessageResponse]
+class TemplateList(BaseModel):
+    templates: list[TemplateResponse]

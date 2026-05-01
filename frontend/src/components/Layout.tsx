@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, PenSquare, Settings, LogOut, Send, Menu, X } from 'lucide-react'
+import { LayoutDashboard, PenSquare, Settings, LogOut, Send, Menu, X, BookMarked } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { logout } from '../api/auth'
 import toast from 'react-hot-toast'
 
 const navItems = [
-  { to: '/dashboard', label: 'Painel', icon: LayoutDashboard },
-  { to: '/compose',   label: 'Compor',  icon: PenSquare },
-  { to: '/settings',  label: 'Config',  icon: Settings },
+  { to: '/dashboard', label: 'Painel',    icon: LayoutDashboard },
+  { to: '/compose',   label: 'Compor',    icon: PenSquare },
+  { to: '/templates', label: 'Modelos',   icon: BookMarked },
+  { to: '/settings',  label: 'Config',    icon: Settings },
 ]
 
 export function Layout() {

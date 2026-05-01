@@ -22,6 +22,7 @@ export interface EditorState {
 interface Props {
   value: EditorState
   onChange: (state: EditorState) => void
+  existingMediaFilename?: string | null
 }
 
 const MESSAGE_TYPES: { type: MessageType; label: string; icon: typeof MessageSquare; hasMedia: boolean }[] = [
@@ -51,7 +52,7 @@ const DEFAULT_POLL: PollData = {
   allows_multiple_answers: false,
 }
 
-export function MessageEditor({ value, onChange }: Props) {
+export function MessageEditor({ value, onChange, existingMediaFilename }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [tab, setTab] = useState<Tab>('content')
 
@@ -115,12 +116,23 @@ export function MessageEditor({ value, onChange }: Props) {
           <div className="p-4 space-y-4">
             {hasMedia && (
               <div>
-                <label className="label">Arquivo de midia</label>
+                <label className="label">Arquivo de mídia</label>
+                {existingMediaFilename && !value.mediaFile && (
+                  <div className="flex items-center justify-between mb-2 text-xs bg-surface-700 rounded-lg px-3 py-2">
+                    <span className="text-slate-300 truncate">{existingMediaFilename}</span>
+                    <span className="text-slate-500 ml-2 shrink-0">arquivo atual</span>
+                  </div>
+                )}
                 <MediaUpload
                   messageType={value.messageType}
                   value={value.mediaFile}
                   onChange={(f) => set('mediaFile', f)}
                 />
+                {existingMediaFilename && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {value.mediaFile ? 'Novo arquivo substituirá o atual.' : 'Selecione um arquivo para substituir o atual.'}
+                  </p>
+                )}
               </div>
             )}
 

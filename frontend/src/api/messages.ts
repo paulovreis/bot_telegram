@@ -17,7 +17,7 @@ export interface CreateMessagePayload {
   media?: File
 }
 
-export async function createMessage(payload: CreateMessagePayload): Promise<{ id: string; scheduled_at: string }> {
+function buildMessageForm(payload: CreateMessagePayload): FormData {
   const form = new FormData()
   form.append('message_type', payload.message_type)
   if (payload.text) form.append('text', payload.text)
@@ -27,8 +27,24 @@ export async function createMessage(payload: CreateMessagePayload): Promise<{ id
   form.append('disable_web_page_preview', String(payload.disable_web_page_preview ?? false))
   form.append('scheduled_at', payload.scheduled_at)
   if (payload.media) form.append('media', payload.media)
+  return form
+}
 
-  const { data } = await client.post('/messages/', form, {
+export async function createMessage(payload: CreateMessagePayload): Promise<{ id: string; scheduled_at: string }> {
+  const { data } = await client.post('/messages/', buildMessageForm(payload), {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export interface UpdateMessagePayload extends CreateMessagePayload {
+  clearMedia?: boolean
+}
+
+export async function updateMessage(id: string, payload: UpdateMessagePayload): Promise<{ id: string; scheduled_at: string }> {
+  const form = buildMessageForm(payload)
+  form.append('clear_media', String(payload.clearMedia ?? false))
+  const { data } = await client.put(`/messages/${id}`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return data

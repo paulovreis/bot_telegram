@@ -33,6 +33,25 @@ export interface ScheduledMessage {
   status: MessageStatus
   error_message: string | null
   created_at: string
+  deleted_at: string | null
+  template_id: string | null
+}
+
+export interface MessageTemplate {
+  id: string
+  name: string
+  message_type: MessageType
+  text: string | null
+  parse_mode: ParseMode
+  media_filename: string | null
+  media_mime_type: string | null
+  inline_keyboard: InlineKeyboard | null
+  poll_data: PollData | null
+  disable_web_page_preview: boolean
+  recurrence_minutes: number | null
+  next_send_at: string | null
+  recurrence_end_at: string | null
+  created_at: string
 }
 
 export interface BotSettings {
