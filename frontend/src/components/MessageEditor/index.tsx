@@ -71,9 +71,12 @@ export function MessageEditor({ value, onChange }: Props) {
             key={type}
             type="button"
             onClick={() => {
-              set('messageType', type)
-              set('mediaFile', null)
-              if (type === 'poll') set('pollData', DEFAULT_POLL)
+              onChange({
+                ...value,
+                messageType: type,
+                mediaFile: null,
+                pollData: type === 'poll' ? DEFAULT_POLL : value.pollData,
+              })
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               value.messageType === type
