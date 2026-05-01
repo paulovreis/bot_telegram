@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     # Public URLs (Traefik/Easypanel)
     frontend_origin: str = "https://tl.painelderevenda.com.br"
-    enforce_https: bool = False
+    enforce_https: bool = True
 
     # Database
     database_url: str

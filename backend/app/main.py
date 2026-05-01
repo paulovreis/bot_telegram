@@ -29,8 +29,6 @@ class EnforceHTTPSMiddleware(BaseHTTPMiddleware):
         proto = (forwarded_proto.split(",")[0].strip().lower() if forwarded_proto else "")
         if proto and proto != "https":
             return JSONResponse({"detail": "HTTPS required"}, status_code=403)
-        if not proto and request.url.scheme != "https":
-            return JSONResponse({"detail": "HTTPS required"}, status_code=403)
         return await call_next(request)
 
 

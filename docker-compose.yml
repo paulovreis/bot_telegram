@@ -28,7 +28,7 @@ services:
     networks:
       - app_network
     expose:
-      - "9567"
+      - "80"
 
   frontend:
     build:
@@ -38,7 +38,7 @@ services:
     networks:
       - app_network
     expose:
-      - "9654"
+      - "80"
 
 networks:
   app_network:

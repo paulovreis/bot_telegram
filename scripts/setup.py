@@ -100,10 +100,9 @@ TZ=America/Sao_Paulo
 
     print(f"\n✓ Arquivo .env gerado em: {env_path}")
     print("\nPróximos passos:")
-    print("  1. make ssl     → gera o certificado HTTPS")
-    print("  2. make build   → constrói as imagens Docker")
-    print("  3. make up      → sobe o sistema")
-    print("  4. Acesse: https://localhost:9781")
+    print("  1. make build   → constrói as imagens Docker")
+    print("  2. make up      → sobe o sistema")
+    print("  3. Configure o HTTPS via Traefik/Easypanel (produção)")
     print(f"\n  Login: admin / [senha definida acima]")
 
 if __name__ == "__main__":
