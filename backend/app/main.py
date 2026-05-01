@@ -23,14 +23,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class EnforceHTTPSMiddleware(BaseHTTPMiddleware):
+class BlockInsecureForwardedProtoMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path == "/health":
             return await call_next(request)
         forwarded_proto = request.headers.get("x-forwarded-proto", "")
         proto = (forwarded_proto.split(",")[0].strip().lower() if forwarded_proto else "")
-        if proto and proto != "https":
-            return JSONResponse({"detail": "HTTPS required"}, status_code=403)
+        if proto == "http":
+            return JSONResponse({"detail": "HTTP not allowed"}, status_code=403)
         return await call_next(request)
 
 
@@ -75,8 +75,9 @@ app = FastAPI(
     openapi_url=None,
 )
 
-if app_settings.enforce_https:
-    app.add_middleware(EnforceHTTPSMiddleware)
+# HTTPS/TLS é terminado no proxy (EasyPanel/Traefik). Aqui apenas recusamos quando
+# o proxy indicar explicitamente que a requisição chegou via HTTP.
+app.add_middleware(BlockInsecureForwardedProtoMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
