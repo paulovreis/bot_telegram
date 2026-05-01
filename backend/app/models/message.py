@@ -1,6 +1,7 @@
 import uuid
 import enum
 from datetime import datetime, timezone
+from typing import Any
 from sqlalchemy import String, Text, LargeBinary, DateTime, Boolean, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
@@ -26,8 +27,8 @@ class ScheduledMessage(Base):
     media: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     media_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     media_mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    inline_keyboard: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    poll_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    inline_keyboard: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    poll_data: Mapped[Any | None] = mapped_column(JSON, nullable=True)
     disable_web_page_preview: Mapped[bool] = mapped_column(Boolean, default=False)
     scheduled_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

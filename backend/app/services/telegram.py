@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 import logging
@@ -81,14 +81,59 @@ async def _post(token: str, method: str, **kwargs) -> dict:
     return data["result"]
 
 
-def _markup_json(inline_keyboard: Optional[dict]) -> Optional[dict]:
-    # When using application/json requests, Telegram expects reply_markup as an object.
-    return inline_keyboard if inline_keyboard else None
+def _normalize_reply_markup(value: Any) -> Optional[dict]:
+    """Coerce UI-provided inline keyboard into Telegram's reply_markup object.
+
+    The frontend stores/sends `inline_keyboard` as a 2D array (InlineKeyboard), e.g.:
+        [[{"text": "Site", "url": "https://..."}]]
+
+    Telegram expects `reply_markup` to be an *object*, e.g.:
+        {"inline_keyboard": [[...]]}
+
+    We accept:
+    - dict: already a reply_markup object
+    - list: treated as inline_keyboard grid and wrapped
+    - str: JSON string representing either dict or list
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        try:
+            value = json.loads(raw)
+        except Exception:
+            logger.warning(
+                "invalid_reply_markup_json",
+                extra={"reply_markup_length": len(raw)},
+            )
+            return None
+
+    if isinstance(value, list):
+        # Frontend format: InlineKeyboard = Array<Array<Button>>
+        return {"inline_keyboard": value}
+
+    if isinstance(value, dict):
+        return value
+
+    logger.warning(
+        "invalid_reply_markup_type",
+        extra={"reply_markup_type": type(value).__name__},
+    )
+    return None
 
 
-def _markup_form(inline_keyboard: Optional[dict]) -> Optional[str]:
-    # When using multipart/form-data, Telegram expects reply_markup as a JSON-serialized string.
-    return json.dumps(inline_keyboard) if inline_keyboard else None
+def _normalize_reply_markup_form(value: Any) -> Optional[str]:
+    """Return reply_markup suitable for multipart/form-data requests.
+
+    For multipart, Telegram expects `reply_markup` as a JSON string.
+    """
+
+    mk = _normalize_reply_markup(value)
+    return json.dumps(mk) if mk else None
 
 
 async def send_text(
@@ -96,7 +141,7 @@ async def send_text(
     chat_id: str,
     text: str,
     parse_mode: str = "HTML",
-    inline_keyboard: Optional[dict] = None,
+    inline_keyboard: Any = None,
     disable_web_page_preview: bool = False,
 ) -> dict:
     payload: dict = {
@@ -105,7 +150,7 @@ async def send_text(
         "parse_mode": parse_mode,
         "disable_web_page_preview": disable_web_page_preview,
     }
-    mk = _markup_json(inline_keyboard)
+    mk = _normalize_reply_markup(inline_keyboard)
     if mk:
         payload["reply_markup"] = mk
     return await _post(token, "sendMessage", json=payload)
@@ -121,13 +166,13 @@ async def _send_media(
     mime_type: str,
     caption: Optional[str],
     parse_mode: str,
-    inline_keyboard: Optional[dict],
+    inline_keyboard: Any,
 ) -> dict:
     files = {field: (filename, media, mime_type)}
     data: dict = {"chat_id": chat_id, "parse_mode": parse_mode}
     if caption:
         data["caption"] = caption
-    mk = _markup_form(inline_keyboard)
+    mk = _normalize_reply_markup_form(inline_keyboard)
     if mk:
         data["reply_markup"] = mk
     return await _post(token, method, files=files, data=data)
@@ -136,7 +181,7 @@ async def _send_media(
 async def send_photo(
     token: str, chat_id: str, media: bytes, filename: str, mime_type: str,
     caption: Optional[str] = None, parse_mode: str = "HTML",
-    inline_keyboard: Optional[dict] = None,
+    inline_keyboard: Any = None,
 ) -> dict:
     return await _send_media(token, "sendPhoto", "photo", chat_id, media, filename, mime_type, caption, parse_mode, inline_keyboard)
 
@@ -144,7 +189,7 @@ async def send_photo(
 async def send_video(
     token: str, chat_id: str, media: bytes, filename: str, mime_type: str,
     caption: Optional[str] = None, parse_mode: str = "HTML",
-    inline_keyboard: Optional[dict] = None,
+    inline_keyboard: Any = None,
 ) -> dict:
     return await _send_media(token, "sendVideo", "video", chat_id, media, filename, mime_type, caption, parse_mode, inline_keyboard)
 
@@ -152,7 +197,7 @@ async def send_video(
 async def send_document(
     token: str, chat_id: str, media: bytes, filename: str, mime_type: str,
     caption: Optional[str] = None, parse_mode: str = "HTML",
-    inline_keyboard: Optional[dict] = None,
+    inline_keyboard: Any = None,
 ) -> dict:
     return await _send_media(token, "sendDocument", "document", chat_id, media, filename, mime_type, caption, parse_mode, inline_keyboard)
 
@@ -160,7 +205,7 @@ async def send_document(
 async def send_audio(
     token: str, chat_id: str, media: bytes, filename: str, mime_type: str,
     caption: Optional[str] = None, parse_mode: str = "HTML",
-    inline_keyboard: Optional[dict] = None,
+    inline_keyboard: Any = None,
 ) -> dict:
     return await _send_media(token, "sendAudio", "audio", chat_id, media, filename, mime_type, caption, parse_mode, inline_keyboard)
 
@@ -168,7 +213,7 @@ async def send_audio(
 async def send_animation(
     token: str, chat_id: str, media: bytes, filename: str, mime_type: str,
     caption: Optional[str] = None, parse_mode: str = "HTML",
-    inline_keyboard: Optional[dict] = None,
+    inline_keyboard: Any = None,
 ) -> dict:
     return await _send_media(token, "sendAnimation", "animation", chat_id, media, filename, mime_type, caption, parse_mode, inline_keyboard)
 
@@ -176,7 +221,7 @@ async def send_animation(
 async def send_voice(
     token: str, chat_id: str, media: bytes, filename: str, mime_type: str,
     caption: Optional[str] = None, parse_mode: str = "HTML",
-    inline_keyboard: Optional[dict] = None,
+    inline_keyboard: Any = None,
 ) -> dict:
     return await _send_media(token, "sendVoice", "voice", chat_id, media, filename, mime_type, caption, parse_mode, inline_keyboard)
 
