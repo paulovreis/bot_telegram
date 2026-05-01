@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import hashlib
 
 from ..database import get_db
 from ..models.bot_settings import BotSettings
@@ -69,8 +70,15 @@ async def test_bot(
     if not token:
         raise HTTPException(status_code=400, detail="Nenhum token configurado")
 
+    env_token = normalize_bot_token(app_settings.telegram_bot_token)
+
+    def _fp(v: str) -> str:
+        # short, non-reversible fingerprint (debug only)
+        return hashlib.sha256((v or "").encode("utf-8")).hexdigest()[:12]
+
     # Non-secret diagnostics to help debug env/db mismatches.
     token_bot_id = token.split(":", 1)[0] if ":" in token else ""
+    env_bot_id = env_token.split(":", 1)[0] if ":" in env_token else ""
     try:
         info = await get_bot_info(token)
         return {
@@ -79,6 +87,10 @@ async def test_bot(
             "token_source": token_source,
             "token_length": len(token),
             "token_bot_id": token_bot_id,
+            "token_fp": _fp(token),
+            "env_bot_id": env_bot_id,
+            "env_fp": _fp(env_token) if env_token else "",
+            "matches_env": bool(env_token) and _fp(env_token) == _fp(token),
         }
     except Exception as exc:
         return {
@@ -87,4 +99,8 @@ async def test_bot(
             "token_source": token_source,
             "token_length": len(token),
             "token_bot_id": token_bot_id,
+            "token_fp": _fp(token),
+            "env_bot_id": env_bot_id,
+            "env_fp": _fp(env_token) if env_token else "",
+            "matches_env": bool(env_token) and _fp(env_token) == _fp(token),
         }

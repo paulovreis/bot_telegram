@@ -26,6 +26,9 @@ def normalize_bot_token(raw: str) -> str:
     if not token:
         return ""
 
+    # Remove any whitespace (including hidden newlines) that can break auth.
+    token = re.sub(r"\s+", "", token)
+
     # If user pasted a full Telegram API URL, extract the token.
     # We also support any string containing '/bot<token>/' for safety.
     idx = token.find("/bot")
