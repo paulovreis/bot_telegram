@@ -5,6 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from .config import settings as app_settings
 from .database import AsyncSessionLocal, init_db
@@ -18,6 +21,17 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+class EnforceHTTPSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        forwarded_proto = request.headers.get("x-forwarded-proto", "")
+        proto = (forwarded_proto.split(",")[0].strip().lower() if forwarded_proto else "")
+        if proto and proto != "https":
+            return JSONResponse({"detail": "HTTPS required"}, status_code=403)
+        if not proto and request.url.scheme != "https":
+            return JSONResponse({"detail": "HTTPS required"}, status_code=403)
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -61,9 +75,12 @@ app = FastAPI(
     openapi_url=None,
 )
 
+if app_settings.enforce_https:
+    app.add_middleware(EnforceHTTPSMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[app_settings.frontend_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -5,6 +5,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # Public URLs (Traefik/Easypanel)
+    frontend_origin: str = "https://tl.painelderevenda.com.br"
+    enforce_https: bool = False
+
     # Database
     database_url: str
 

@@ -1,8 +1,15 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'https://tlapi.painelderevenda.com.br'
+
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+})
+
+const refreshClient = axios.create({
+  baseURL: API_BASE_URL,
   withCredentials: true,
 })
 
@@ -34,7 +41,7 @@ client.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+        const { data } = await refreshClient.post('/auth/refresh', {})
         const newToken: string = data.access_token
         useAuthStore.getState().setAccessToken(newToken)
         refreshQueue.forEach((cb) => cb(newToken))
