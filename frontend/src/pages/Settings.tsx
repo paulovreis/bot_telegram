@@ -143,8 +143,8 @@ export function Settings() {
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-3 pt-2">
-          <button type="submit" disabled={isSubmitting} className="btn-primary flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-2">
+          <button type="submit" disabled={isSubmitting} className="btn-primary flex items-center justify-center gap-2">
             <Save className="w-4 h-4" />
             {isSubmitting ? 'Salvando...' : 'Salvar configurações'}
           </button>
@@ -152,7 +152,7 @@ export function Settings() {
             type="button"
             onClick={handleTest}
             disabled={testing || !botTokenSet}
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center justify-center gap-2"
           >
             <Wifi className="w-4 h-4" />
             {testing ? 'Testando...' : 'Testar conexão'}

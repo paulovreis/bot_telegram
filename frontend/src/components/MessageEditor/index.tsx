@@ -25,19 +25,19 @@ interface Props {
 }
 
 const MESSAGE_TYPES: { type: MessageType; label: string; icon: typeof MessageSquare; hasMedia: boolean }[] = [
-  { type: 'text',      label: 'Texto',       icon: MessageSquare, hasMedia: false },
-  { type: 'photo',     label: 'Foto',        icon: Image,         hasMedia: true },
-  { type: 'video',     label: 'Vídeo',       icon: Video,         hasMedia: true },
-  { type: 'document',  label: 'Documento',   icon: FileText,      hasMedia: true },
-  { type: 'audio',     label: 'Áudio',       icon: Music,         hasMedia: true },
-  { type: 'animation', label: 'GIF',         icon: Zap,           hasMedia: true },
-  { type: 'voice',     label: 'Voz',         icon: Mic,           hasMedia: true },
-  { type: 'poll',      label: 'Enquete',     icon: BarChart3,     hasMedia: false },
+  { type: 'text',      label: 'Texto',    icon: MessageSquare, hasMedia: false },
+  { type: 'photo',     label: 'Foto',     icon: Image,         hasMedia: true },
+  { type: 'video',     label: 'Video',    icon: Video,         hasMedia: true },
+  { type: 'document',  label: 'Doc',      icon: FileText,      hasMedia: true },
+  { type: 'audio',     label: 'Audio',    icon: Music,         hasMedia: true },
+  { type: 'animation', label: 'GIF',      icon: Zap,           hasMedia: true },
+  { type: 'voice',     label: 'Voz',      icon: Mic,           hasMedia: true },
+  { type: 'poll',      label: 'Enquete',  icon: BarChart3,     hasMedia: false },
 ]
 
 const TAB_ICONS = [
-  { id: 'content', label: 'Conteúdo',  icon: MessageSquare },
-  { id: 'buttons', label: 'Botões',    icon: Keyboard },
+  { id: 'content', label: 'Conteudo',  icon: MessageSquare },
+  { id: 'buttons', label: 'Botoes',    icon: Keyboard },
   { id: 'preview', label: 'Preview',   icon: Eye },
 ] as const
 
@@ -64,8 +64,8 @@ export function MessageEditor({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Type selector */}
-      <div className="flex flex-wrap gap-1 p-3 border-b border-surface-700 bg-surface-800">
+      {/* Type selector — 4-col grid on mobile, wrapping flex on larger screens */}
+      <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1 p-3 border-b border-surface-700 bg-surface-800">
         {MESSAGE_TYPES.map(({ type, label, icon: Icon }) => (
           <button
             key={type}
@@ -78,14 +78,14 @@ export function MessageEditor({ value, onChange }: Props) {
                 pollData: type === 'poll' ? DEFAULT_POLL : value.pollData,
               })
             }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5 px-1 sm:px-3 py-2 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
               value.messageType === type
                 ? 'bg-brand-600 text-white'
                 : 'bg-surface-700 text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
+            <Icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+            <span className="leading-tight text-center">{label}</span>
           </button>
         ))}
       </div>
@@ -97,14 +97,14 @@ export function MessageEditor({ value, onChange }: Props) {
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === id
                 ? 'border-brand-500 text-brand-400'
                 : 'border-transparent text-slate-500 hover:text-slate-300'
             }`}
           >
             <Icon className="w-4 h-4" />
-            {label}
+            <span className="hidden sm:inline">{label}</span>
           </button>
         ))}
       </div>
@@ -113,10 +113,9 @@ export function MessageEditor({ value, onChange }: Props) {
       <div className="flex-1 overflow-y-auto">
         {tab === 'content' && (
           <div className="p-4 space-y-4">
-            {/* Media upload */}
             {hasMedia && (
               <div>
-                <label className="label">Arquivo de mídia</label>
+                <label className="label">Arquivo de midia</label>
                 <MediaUpload
                   messageType={value.messageType}
                   value={value.mediaFile}
@@ -125,19 +124,17 @@ export function MessageEditor({ value, onChange }: Props) {
               </div>
             )}
 
-            {/* Poll editor */}
             {value.messageType === 'poll' && (
               <PollEditor value={value.pollData} onChange={(p) => set('pollData', p)} />
             )}
 
-            {/* Text / Caption */}
             {value.messageType !== 'poll' && (
               <div className="flex flex-col">
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
                   <label className="label mb-0">
                     {hasMedia ? 'Legenda (opcional)' : 'Mensagem'}
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {!hasMedia && (
                       <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer">
                         <input
@@ -165,7 +162,7 @@ export function MessageEditor({ value, onChange }: Props) {
                   )}
                   <textarea
                     ref={textareaRef}
-                    className="w-full bg-surface-900 text-slate-100 px-3 py-2.5 text-sm resize-none focus:outline-none placeholder-slate-600 min-h-[160px]"
+                    className="w-full bg-surface-900 text-slate-100 px-3 py-2.5 text-sm resize-none focus:outline-none placeholder-slate-600 min-h-[140px] sm:min-h-[160px]"
                     placeholder={hasMedia ? 'Adicione uma legenda...' : 'Digite sua mensagem...'}
                     value={value.text}
                     onChange={(e) => set('text', e.target.value)}
@@ -185,7 +182,7 @@ export function MessageEditor({ value, onChange }: Props) {
         {tab === 'buttons' && (
           <div className="p-4">
             <p className="text-xs text-slate-500 mb-3">
-              Adicione botões com links. Os botões aparecem abaixo da mensagem.
+              Adicione botoes com links. Os botoes aparecem abaixo da mensagem.
             </p>
             <InlineKeyboardEditor
               value={value.inlineKeyboard}

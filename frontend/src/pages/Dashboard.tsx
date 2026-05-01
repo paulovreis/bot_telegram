@@ -8,8 +8,8 @@ import { listMessages, deleteMessage, sendNow } from '../api/messages'
 import type { ScheduledMessage } from '../types'
 
 const TYPE_LABELS: Record<string, string> = {
-  text: 'Texto', photo: 'Foto', video: 'Vídeo', document: 'Documento',
-  audio: 'Áudio', animation: 'GIF', voice: 'Voz', poll: 'Enquete',
+  text: 'Texto', photo: 'Foto', video: 'Video', document: 'Documento',
+  audio: 'Audio', animation: 'GIF', voice: 'Voz', poll: 'Enquete',
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -17,7 +17,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function formatDate(iso: string) {
-  return format(parseISO(iso), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+  return format(parseISO(iso), "dd/MM/yyyy 'as' HH:mm", { locale: ptBR })
 }
 
 export function Dashboard() {
@@ -67,18 +67,18 @@ export function Dashboard() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Mensagens Agendadas</h1>
-          <p className="text-slate-400 text-sm mt-1">Atualiza automaticamente a cada 30 segundos</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Mensagens Agendadas</h1>
+          <p className="text-slate-400 text-xs sm:text-sm mt-0.5">Atualiza automaticamente a cada 30 segundos</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} className="btn-secondary flex items-center gap-2 text-sm">
+          <button onClick={load} className="btn-secondary flex items-center gap-2 text-sm py-2">
             <RefreshCw className="w-4 h-4" />
-            Atualizar
+            <span className="hidden sm:inline">Atualizar</span>
           </button>
-          <button onClick={() => navigate('/compose')} className="btn-primary flex items-center gap-2 text-sm">
+          <button onClick={() => navigate('/compose')} className="btn-primary flex items-center gap-2 text-sm py-2 flex-1 sm:flex-none justify-center">
             <PenSquare className="w-4 h-4" />
             Nova mensagem
           </button>
@@ -103,63 +103,65 @@ export function Dashboard() {
       ) : (
         <div className="space-y-3">
           {messages.map((msg) => (
-            <div key={msg.id} className="card flex items-start gap-4 p-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-medium text-slate-300 bg-surface-700 px-2 py-0.5 rounded">
-                    {TYPE_LABELS[msg.message_type] ?? msg.message_type}
-                  </span>
-                  <StatusBadge status={msg.status} />
-                  {msg.media_filename && (
-                    <span className="text-xs text-slate-500 truncate max-w-[140px]">
-                      📎 {msg.media_filename}
+            <div key={msg.id} className="card p-3 sm:p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-slate-300 bg-surface-700 px-2 py-0.5 rounded">
+                      {TYPE_LABELS[msg.message_type] ?? msg.message_type}
                     </span>
-                  )}
-                </div>
-
-                {msg.text && (
-                  <p className="text-sm text-slate-300 mt-2 line-clamp-2 break-words">
-                    {msg.text.replace(/<[^>]+>/g, '')}
-                  </p>
-                )}
-
-                {msg.error_message && (
-                  <div className="flex items-start gap-1.5 mt-2 text-xs text-red-400">
-                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <span>{msg.error_message}</span>
+                    <StatusBadge status={msg.status} />
+                    {msg.media_filename && (
+                      <span className="text-xs text-slate-500 truncate max-w-[120px] sm:max-w-[200px]">
+                        {msg.media_filename}
+                      </span>
+                    )}
                   </div>
-                )}
 
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {formatDate(msg.scheduled_at)}
-                  </span>
-                  {msg.inline_keyboard && msg.inline_keyboard.length > 0 && (
-                    <span className="text-xs text-slate-500">
-                      {msg.inline_keyboard.flat().length} botão(ões)
-                    </span>
+                  {msg.text && (
+                    <p className="text-sm text-slate-300 mt-2 line-clamp-2 break-words">
+                      {msg.text.replace(/<[^>]+>/g, '')}
+                    </p>
                   )}
-                </div>
-              </div>
 
-              <div className="flex items-center gap-1 shrink-0">
-                {msg.status === 'pending' && (
+                  {msg.error_message && (
+                    <div className="flex items-start gap-1.5 mt-2 text-xs text-red-400">
+                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <span>{msg.error_message}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <span className="text-xs text-slate-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatDate(msg.scheduled_at)}
+                    </span>
+                    {msg.inline_keyboard && msg.inline_keyboard.length > 0 && (
+                      <span className="text-xs text-slate-500">
+                        {msg.inline_keyboard.flat().length} botao(es)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {msg.status === 'pending' && (
+                    <button
+                      onClick={() => handleSendNow(msg.id)}
+                      title="Enviar agora"
+                      className="p-2.5 rounded-lg text-green-400 hover:bg-green-500/10 active:bg-green-500/20 transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleSendNow(msg.id)}
-                    title="Enviar agora"
-                    className="p-2 rounded-lg text-green-400 hover:bg-green-500/10 transition-colors"
+                    onClick={() => handleDelete(msg.id)}
+                    title="Excluir"
+                    className="p-2.5 rounded-lg text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
                   >
-                    <Send className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
-                )}
-                <button
-                  onClick={() => handleDelete(msg.id)}
-                  title="Excluir"
-                  className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                </div>
               </div>
             </div>
           ))}
