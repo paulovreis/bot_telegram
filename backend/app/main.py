@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 class EnforceHTTPSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.url.path == "/health":
+            return await call_next(request)
         forwarded_proto = request.headers.get("x-forwarded-proto", "")
         proto = (forwarded_proto.split(",")[0].strip().lower() if forwarded_proto else "")
         if proto and proto != "https":

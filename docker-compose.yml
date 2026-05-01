@@ -27,8 +27,8 @@ services:
         condition: service_healthy
     networks:
       - app_network
-    expose:
-      - "80"
+    ports:
+      - "9567:9567"
 
   frontend:
     build:
@@ -37,8 +37,8 @@ services:
     restart: unless-stopped
     networks:
       - app_network
-    expose:
-      - "80"
+    ports:
+      - "9654:9654"
 
 networks:
   app_network:
