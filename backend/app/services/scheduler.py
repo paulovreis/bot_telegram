@@ -67,9 +67,11 @@ async def process_message(message_id: str) -> None:
             token, chat_id = await get_credentials(session)
             await _dispatch(msg, token, chat_id)
 
-            await session.delete(msg)
+            # Soft delete: mantém 24h para "Repetir envio"
+            msg.status = MessageStatus.sent
+            msg.deleted_at = datetime.now(SP_TZ)
             await session.commit()
-            logger.info("Mensagem %s enviada e removida com sucesso.", message_id)
+            logger.info("Mensagem %s enviada com sucesso.", message_id)
         except Exception as exc:
             logger.error("Falha ao enviar mensagem %s: %s", message_id, exc)
             async with AsyncSessionLocal() as err_session:

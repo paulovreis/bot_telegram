@@ -196,6 +196,8 @@ async def send_now(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
-    await db.delete(msg)
+    # Soft delete: mantém 24h para "Repetir envio"
+    msg.deleted_at = datetime.now(timezone.utc)
+    msg.status = MessageStatus.sent
     await db.commit()
     return {"detail": "Enviada com sucesso"}
