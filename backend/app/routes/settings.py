@@ -7,7 +7,7 @@ from ..models.bot_settings import BotSettings
 from ..routes.deps import get_current_user
 from ..schemas.bot_settings import BotSettingsRequest, BotSettingsResponse
 from ..services.encryption import decrypt, encrypt
-from ..services.telegram import get_bot_info
+from ..services.telegram import get_bot_info, normalize_bot_token
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -44,7 +44,10 @@ async def update_bot_settings(
 ):
     s = await _get_or_create(db)
     if body.bot_token:
-        s.bot_token_encrypted = encrypt(body.bot_token.strip())
+        normalized = normalize_bot_token(body.bot_token)
+        if not normalized:
+            raise HTTPException(status_code=400, detail="Token inválido")
+        s.bot_token_encrypted = encrypt(normalized)
     if body.chat_id is not None:
         s.chat_id_encrypted = encrypt(body.chat_id.strip()) if body.chat_id.strip() else None
     await db.commit()
@@ -65,6 +68,7 @@ async def test_bot(
         if s and s.bot_token_encrypted
         else app_settings.telegram_bot_token
     )
+    token = normalize_bot_token(token)
     if not token:
         raise HTTPException(status_code=400, detail="Nenhum token configurado")
     try:

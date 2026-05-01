@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Optional
 
 import httpx
@@ -7,13 +8,53 @@ _API = "https://api.telegram.org/bot{token}/{method}"
 _TIMEOUT = httpx.Timeout(120.0, connect=10.0)
 
 
+_TOKEN_RE = re.compile(r"^\d+:[A-Za-z0-9_-]{20,}$")
+
+
+def normalize_bot_token(raw: str) -> str:
+    """Normalize common user-provided Telegram bot token formats.
+
+    Accepts:
+    - '<id>:<secret>'
+    - 'bot<id>:<secret>'
+    - 'https://api.telegram.org/bot<id>:<secret>/getMe' (or similar)
+    """
+    token = (raw or "").strip().strip('"').strip("'")
+    if not token:
+        return ""
+
+    # If user pasted a full Telegram API URL, extract the token.
+    # We also support any string containing '/bot<token>/' for safety.
+    idx = token.find("/bot")
+    if idx != -1:
+        rest = token[idx + 4 :]
+        token = rest.split("/", 1)[0].strip()
+
+    # If user pasted 'bot<token>' (common from URL examples), strip leading 'bot'
+    low = token.lower()
+    if low.startswith("bot"):
+        candidate = token[3:].strip()
+        if _TOKEN_RE.match(candidate):
+            token = candidate
+
+    return token
+
+
 async def _post(token: str, method: str, **kwargs) -> dict:
+    token = normalize_bot_token(token)
     url = _API.format(token=token, method=method)
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(url, **kwargs)
         data = resp.json()
     if not data.get("ok"):
-        raise RuntimeError(f"Telegram API [{method}]: {data.get('description', 'Erro desconhecido')}")
+        code = data.get("error_code")
+        desc = data.get("description", "Erro desconhecido")
+        msg = f"Telegram API [{method}]: {desc}"
+        if code is not None:
+            msg = f"{msg} (error_code={code})"
+        if code == 401:
+            msg = f"{msg}. Dica: verifique se o token está no formato '<id>:<segredo>' (sem 'bot' e sem URL)."
+        raise RuntimeError(msg)
     return data["result"]
 
 

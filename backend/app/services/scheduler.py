@@ -11,6 +11,7 @@ from ..models.message import ScheduledMessage, MessageStatus
 from ..models.bot_settings import BotSettings
 from ..services.encryption import decrypt
 from ..services import telegram as tg
+from ..services.telegram import normalize_bot_token
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -21,10 +22,10 @@ async def get_credentials(session: AsyncSession) -> tuple[str, str]:
     result = await session.execute(select(BotSettings).limit(1))
     s = result.scalar_one_or_none()
     if s and s.bot_token_encrypted:
-        token = decrypt(s.bot_token_encrypted)
+        token = normalize_bot_token(decrypt(s.bot_token_encrypted))
         chat_id = decrypt(s.chat_id_encrypted) if s.chat_id_encrypted else ""
         return token, chat_id
-    return settings.telegram_bot_token, settings.telegram_chat_id
+    return normalize_bot_token(settings.telegram_bot_token), settings.telegram_chat_id
 
 
 async def _dispatch(msg: ScheduledMessage, token: str, chat_id: str) -> None:

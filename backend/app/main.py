@@ -15,6 +15,7 @@ from .models.bot_settings import BotSettings
 from .routes import auth, messages, settings
 from .services.encryption import encrypt
 from .services.scheduler import scheduler_loop
+from .services.telegram import normalize_bot_token
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,8 +58,11 @@ async def _seed_default_settings() -> None:
         existing = result.scalar_one_or_none()
         if existing:
             return
+        token = normalize_bot_token(app_settings.telegram_bot_token)
+        if not token:
+            return
         s = BotSettings(id=1)
-        s.bot_token_encrypted = encrypt(app_settings.telegram_bot_token)
+        s.bot_token_encrypted = encrypt(token)
         if app_settings.telegram_chat_id:
             s.chat_id_encrypted = encrypt(app_settings.telegram_chat_id)
         session.add(s)
