@@ -83,7 +83,7 @@ async def process_message(message_id: str) -> None:
                     await err_session.commit()
 
 
-async def process_recurring_template(template_id: str) -> None:
+async def process_recurring_template(template_id: str, fired_at: datetime) -> None:
     """Envia um template recorrente e agenda o próximo envio."""
     async with AsyncSessionLocal() as session:
         try:
@@ -91,17 +91,17 @@ async def process_recurring_template(template_id: str) -> None:
                 select(MessageTemplate).where(MessageTemplate.id == template_id)
             )
             tmpl = result.scalar_one_or_none()
-            if not tmpl or not tmpl.next_send_at or not tmpl.recurrence_minutes:
+            if not tmpl or not tmpl.recurrence_minutes:
                 return
 
             token, chat_id = await get_credentials(session)
             await _dispatch(tmpl, token, chat_id)
             logger.info("Template recorrente %s enviado.", template_id)
 
-            # Calcula próximo envio
-            next_dt = tmpl.next_send_at + timedelta(minutes=tmpl.recurrence_minutes)
+            # Calcula próximo envio a partir do horário que disparou (não do "agora")
+            next_dt = fired_at + timedelta(minutes=tmpl.recurrence_minutes)
             if tmpl.recurrence_end_at and next_dt > tmpl.recurrence_end_at:
-                tmpl.next_send_at = None  # Encerra recorrência
+                tmpl.next_send_at = None
                 logger.info("Recorrência do template %s encerrada (fim atingido).", template_id)
             else:
                 tmpl.next_send_at = next_dt
@@ -109,6 +109,15 @@ async def process_recurring_template(template_id: str) -> None:
             await session.commit()
         except Exception as exc:
             logger.error("Falha ao enviar template recorrente %s: %s", template_id, exc)
+            # Recoloca o next_send_at para tentar novamente no próximo ciclo
+            async with AsyncSessionLocal() as err_session:
+                r = await err_session.execute(
+                    select(MessageTemplate).where(MessageTemplate.id == template_id)
+                )
+                t = r.scalar_one_or_none()
+                if t and t.next_send_at is None:
+                    t.next_send_at = fired_at
+                    await err_session.commit()
 
 
 async def _check_due() -> None:
@@ -140,13 +149,17 @@ async def _check_due() -> None:
             )
         )
         due_templates = result.scalars().all()
-        # Marca next_send_at temporariamente para evitar duplo disparo antes do commit
+        # Captura o fired_at antes de zerar, para passar à função de processamento.
+        # Zerar aqui evita duplo disparo caso o loop rode antes do commit da task.
+        fired: list[tuple[str, datetime]] = [
+            (str(tmpl.id), tmpl.next_send_at) for tmpl in due_templates
+        ]
         for tmpl in due_templates:
             tmpl.next_send_at = None
-        if due_templates:
+        if fired:
             await session.commit()
-            for tmpl in due_templates:
-                asyncio.create_task(process_recurring_template(str(tmpl.id)))
+            for template_id, fired_at in fired:
+                asyncio.create_task(process_recurring_template(template_id, fired_at))
 
 
 async def scheduler_loop() -> None:
