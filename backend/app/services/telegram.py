@@ -3,9 +3,12 @@ import re
 from typing import Optional
 
 import httpx
+import logging
 
 _API = "https://api.telegram.org/bot{token}/{method}"
 _TIMEOUT = httpx.Timeout(120.0, connect=10.0)
+
+logger = logging.getLogger(__name__)
 
 
 _TOKEN_RE = re.compile(r"^\d+:[A-Za-z0-9_-]{20,}$")
@@ -43,10 +46,13 @@ def normalize_bot_token(raw: str) -> str:
 async def _post(token: str, method: str, **kwargs) -> dict:
     token = normalize_bot_token(token)
     url = _API.format(token=token, method=method)
-    print(f"Token telegram: {token}")
-    print(f"URL: {url}")
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        resp = await client.post(url, **kwargs)
+        # Telegram Bot API accepts both GET and POST, but GET is safer for methods
+        # with no payload (e.g., getMe).
+        if kwargs:
+            resp = await client.post(url, **kwargs)
+        else:
+            resp = await client.get(url)
         data = resp.json()
     if not data.get("ok"):
         code = data.get("error_code")
@@ -56,11 +62,29 @@ async def _post(token: str, method: str, **kwargs) -> dict:
             msg = f"{msg} (error_code={code})"
         if code == 401:
             msg = f"{msg}. Dica: verifique se o token está no formato '<id>:<segredo>' (sem 'bot' e sem URL)."
+        # Avoid leaking token in logs; include only non-secret metadata.
+        token_bot_id = token.split(":", 1)[0] if ":" in token else ""
+        logger.warning(
+            "telegram_api_error",
+            extra={
+                "method": method,
+                "status_code": resp.status_code,
+                "error_code": code,
+                "token_bot_id": token_bot_id,
+                "token_length": len(token),
+            },
+        )
         raise RuntimeError(msg)
     return data["result"]
 
 
-def _markup(inline_keyboard: Optional[dict]) -> Optional[str]:
+def _markup_json(inline_keyboard: Optional[dict]) -> Optional[dict]:
+    # When using application/json requests, Telegram expects reply_markup as an object.
+    return inline_keyboard if inline_keyboard else None
+
+
+def _markup_form(inline_keyboard: Optional[dict]) -> Optional[str]:
+    # When using multipart/form-data, Telegram expects reply_markup as a JSON-serialized string.
     return json.dumps(inline_keyboard) if inline_keyboard else None
 
 
@@ -78,7 +102,7 @@ async def send_text(
         "parse_mode": parse_mode,
         "disable_web_page_preview": disable_web_page_preview,
     }
-    mk = _markup(inline_keyboard)
+    mk = _markup_json(inline_keyboard)
     if mk:
         payload["reply_markup"] = mk
     return await _post(token, "sendMessage", json=payload)
@@ -100,7 +124,7 @@ async def _send_media(
     data: dict = {"chat_id": chat_id, "parse_mode": parse_mode}
     if caption:
         data["caption"] = caption
-    mk = _markup(inline_keyboard)
+    mk = _markup_form(inline_keyboard)
     if mk:
         data["reply_markup"] = mk
     return await _post(token, method, files=files, data=data)
