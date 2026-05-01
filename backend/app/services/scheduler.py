@@ -16,11 +16,11 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 SP_TZ = ZoneInfo("America/Sao_Paulo")
+_SETTINGS_ID = 1
 
 
 async def get_credentials(session: AsyncSession) -> tuple[str, str]:
-    result = await session.execute(select(BotSettings).limit(1))
-    s = result.scalar_one_or_none()
+    s = await session.get(BotSettings, _SETTINGS_ID)
     if s and s.bot_token_encrypted:
         token = normalize_bot_token(decrypt(s.bot_token_encrypted))
         chat_id = decrypt(s.chat_id_encrypted) if s.chat_id_encrypted else ""

@@ -54,8 +54,7 @@ async def _seed_default_settings() -> None:
     if not app_settings.telegram_bot_token:
         return
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(BotSettings).limit(1))
-        existing = result.scalar_one_or_none()
+        existing = await session.get(BotSettings, 1)
         if existing:
             return
         token = normalize_bot_token(app_settings.telegram_bot_token)
