@@ -43,6 +43,8 @@ def normalize_bot_token(raw: str) -> str:
 async def _post(token: str, method: str, **kwargs) -> dict:
     token = normalize_bot_token(token)
     url = _API.format(token=token, method=method)
+    print(f"Token telegram: {token}")
+    print(f"URL: {url}")
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(url, **kwargs)
         data = resp.json()

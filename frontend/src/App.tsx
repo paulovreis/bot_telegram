@@ -11,12 +11,14 @@ import { refresh } from './api/auth'
 
 export default function App() {
   const setAccessToken = useAuthStore((s) => s.setAccessToken)
+  const setAuthReady = useAuthStore((s) => s.setAuthReady)
 
   useEffect(() => {
     refresh()
       .then((token) => setAccessToken(token))
       .catch(() => {})
-  }, [setAccessToken])
+      .finally(() => setAuthReady(true))
+  }, [setAccessToken, setAuthReady])
 
   return (
     <BrowserRouter>
